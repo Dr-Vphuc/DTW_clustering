@@ -94,6 +94,7 @@ class KMedoidsDTW(BaseClusterer):
 
         self.medoid_indices_: Optional[np.ndarray] = None
         self.inertia_: Optional[float] = None
+        self.distance_matrix_: Optional[np.ndarray] = None
         self._X_fit: Optional[np.ndarray] = None
 
     # ------------------------------------------------------------------
@@ -219,12 +220,20 @@ class KMedoidsDTW(BaseClusterer):
     # fit / predict
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray) -> "KMedoidsDTW":
+    def fit(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> "KMedoidsDTW":
         """Compute K-Medoids clustering.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix.  When provided, the
+            expensive DTW computation is skipped.  After fitting,
+            ``self.distance_matrix_`` stores the matrix for reuse.
 
         Returns
         -------
@@ -244,7 +253,12 @@ class KMedoidsDTW(BaseClusterer):
             )
 
         rng = self._random_state()
-        D = self._compute_distance_matrix(X)             # symmetric (n, n)
+        D = (
+            precomputed_matrix
+            if precomputed_matrix is not None
+            else self._compute_distance_matrix(X)
+        )
+        self.distance_matrix_ = D
 
         medoids = (
             self._init_pp(D, rng)

@@ -120,6 +120,7 @@ class SpectralClusteringDTW(BaseClusterer):
         self.affinity_matrix_: Optional[np.ndarray] = None
         self.embedding_: Optional[np.ndarray] = None
         self.sigma_: Optional[float] = None
+        self.distance_matrix_: Optional[np.ndarray] = None
         self._X_fit: Optional[np.ndarray] = None
 
     # ------------------------------------------------------------------
@@ -218,12 +219,20 @@ class SpectralClusteringDTW(BaseClusterer):
     # fit
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray) -> "SpectralClusteringDTW":
+    def fit(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> "SpectralClusteringDTW":
         """Compute spectral clustering.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix.  When provided, the
+            expensive DTW computation is skipped.  Stored as
+            ``self.distance_matrix_`` after fitting.
 
         Returns
         -------
@@ -237,7 +246,12 @@ class SpectralClusteringDTW(BaseClusterer):
             )
 
         # Step 1 — DTW distance matrix
-        D = self._compute_distance_matrix(X)             # (n, n)
+        D = (
+            precomputed_matrix
+            if precomputed_matrix is not None
+            else self._compute_distance_matrix(X)
+        )
+        self.distance_matrix_ = D
 
         # Step 2 — Gaussian-kernel affinity
         W, sigma = self._build_affinity(D)
@@ -261,7 +275,6 @@ class SpectralClusteringDTW(BaseClusterer):
         self.embedding_ = V
         self.sigma_ = sigma
         self._X_fit = X
-        self._D_fit = D                                  # kept for predict()
         return self
 
     # ------------------------------------------------------------------
@@ -277,7 +290,7 @@ class SpectralClusteringDTW(BaseClusterer):
         """
         self._check_is_fitted()
         X = self._X_fit
-        D = self._D_fit
+        D = self.distance_matrix_
         centers = []
         for k in range(self.n_clusters):
             idx = np.where(self.labels_ == k)[0]

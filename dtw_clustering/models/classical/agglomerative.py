@@ -106,18 +106,27 @@ class AgglomerativeDTW(BaseClusterer):
         self.linkage_method = linkage_method
 
         self.linkage_matrix_: Optional[np.ndarray] = None
+        self.distance_matrix_: Optional[np.ndarray] = None
         self._X_fit: Optional[np.ndarray] = None
 
     # ------------------------------------------------------------------
     # fit
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray) -> "AgglomerativeDTW":
+    def fit(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> "AgglomerativeDTW":
         """Compute hierarchical clustering and cut at ``n_clusters``.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix.  When provided, the
+            expensive DTW computation is skipped.  Stored as
+            ``self.distance_matrix_`` after fitting.
 
         Returns
         -------
@@ -130,7 +139,12 @@ class AgglomerativeDTW(BaseClusterer):
                 f"n_samples={n} is smaller than n_clusters={self.n_clusters}"
             )
 
-        D = self._compute_distance_matrix(X)             # (n, n), symmetric
+        D = (
+            precomputed_matrix
+            if precomputed_matrix is not None
+            else self._compute_distance_matrix(X)
+        )
+        self.distance_matrix_ = D
 
         # scipy.linkage expects a condensed (upper-triangle) distance vector.
         condensed = squareform(D, checks=False)

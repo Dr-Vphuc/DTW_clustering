@@ -120,6 +120,7 @@ class KMeansDTW(BaseClusterer):
 
         self.cluster_centers_: Optional[np.ndarray] = None
         self.inertia_: Optional[float] = None
+        self.distance_matrix_: Optional[np.ndarray] = None
         self.n_iter_: int = 0
 
     # ------------------------------------------------------------------
@@ -197,12 +198,20 @@ class KMeansDTW(BaseClusterer):
     # fit / predict
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray) -> "KMeansDTW":
+    def fit(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> "KMeansDTW":
         """Compute DTW K-Means clustering.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix used for ``dtw_kmeans++``
+            initialisation.  When provided, the expensive DTW computation is
+            skipped.  Stored as ``self.distance_matrix_`` after fitting.
 
         Returns
         -------
@@ -218,7 +227,12 @@ class KMeansDTW(BaseClusterer):
         rng = self._random_state()
 
         # Precompute full distance matrix once for initialisation.
-        D_full = self._compute_distance_matrix(X)        # (n, n)
+        D_full = (
+            precomputed_matrix
+            if precomputed_matrix is not None
+            else self._compute_distance_matrix(X)
+        )
+        self.distance_matrix_ = D_full
 
         if self.init == "dtw_kmeans++":
             centers = self._init_pp(X, D_full, rng)

@@ -159,6 +159,7 @@ class AffinityPropagationDTW(BaseClusterer):
         self.cluster_centers_indices_: Optional[np.ndarray] = None
         self.n_clusters_: int = 0
         self.affinity_matrix_: Optional[np.ndarray] = None
+        self.distance_matrix_: Optional[np.ndarray] = None
         self.n_iter_: int = 0
         self._X_fit: Optional[np.ndarray] = None
 
@@ -298,12 +299,20 @@ class AffinityPropagationDTW(BaseClusterer):
     # fit
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray) -> "AffinityPropagationDTW":
+    def fit(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> "AffinityPropagationDTW":
         """Run Affinity Propagation on time series array ``X``.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix.  When provided, the
+            expensive DTW computation is skipped.  Stored as
+            ``self.distance_matrix_`` after fitting.
 
         Returns
         -------
@@ -313,7 +322,12 @@ class AffinityPropagationDTW(BaseClusterer):
         n = len(X)
 
         # Step 1 — DTW distance matrix
-        D = self._compute_distance_matrix(X)           # (n, n)
+        D = (
+            precomputed_matrix
+            if precomputed_matrix is not None
+            else self._compute_distance_matrix(X)
+        )
+        self.distance_matrix_ = D
 
         # Step 2 — Similarity matrix (Gaussian kernel + preference diagonal)
         S = self._build_similarity(D)
@@ -366,7 +380,6 @@ class AffinityPropagationDTW(BaseClusterer):
         self.n_clusters = self.n_clusters_             # keep consistent with base class
         self.affinity_matrix_ = S
         self._X_fit = X
-        self._D_fit = D
         return self
 
     # ------------------------------------------------------------------

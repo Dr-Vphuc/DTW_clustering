@@ -98,18 +98,24 @@ class BaseClusterer(ABC):
         ``self``.
         """
 
-    def fit_predict(self, X: np.ndarray) -> np.ndarray:
+    def fit_predict(
+        self,
+        X: np.ndarray,
+        precomputed_matrix: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
         """Fit and return cluster labels for each sample.
 
         Parameters
         ----------
         X : ndarray of shape (n_samples, n_timesteps[, n_features])
+        precomputed_matrix : ndarray of shape (n_samples, n_samples), optional
+            Pre-computed pairwise distance matrix.  Forwarded to :meth:`fit`.
 
         Returns
         -------
         labels : ndarray of shape (n_samples,), dtype int
         """
-        return self.fit(X).labels_
+        return self.fit(X, precomputed_matrix=precomputed_matrix).labels_
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Assign new samples to the nearest cluster.
