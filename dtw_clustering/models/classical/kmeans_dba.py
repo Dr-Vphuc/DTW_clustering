@@ -192,6 +192,11 @@ class KMeansDTW(BaseClusterer):
                         max_iter=self.dba_max_iter,
                     )
                 )
+        if any(c.shape != centers[0].shape for c in centers):
+            arr = np.empty(len(centers), dtype=object)
+            for i, c in enumerate(centers):
+                arr[i] = c
+            return arr
         return np.stack(centers, axis=0)
 
     # ------------------------------------------------------------------
@@ -217,7 +222,13 @@ class KMeansDTW(BaseClusterer):
         -------
         self
         """
-        X = np.asarray(X, dtype=np.float64)
+        if isinstance(X, list):
+            X_arr = np.empty(len(X), dtype=object)
+            for i, t in enumerate(X):
+                X_arr[i] = np.asarray(t)
+            X = X_arr
+        else:
+            X = np.asarray(X, dtype=np.float64)
         n = len(X)
         if n < self.n_clusters:
             raise ValueError(
