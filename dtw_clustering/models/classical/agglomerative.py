@@ -132,7 +132,13 @@ class AgglomerativeDTW(BaseClusterer):
         -------
         self
         """
-        X = np.asarray(X)
+        if isinstance(X, list):
+            X_arr = np.empty(len(X), dtype=object)
+            for i, t in enumerate(X):
+                X_arr[i] = np.asarray(t)
+            X = X_arr
+        else:
+            X = np.asarray(X)
         n = len(X)
         if n < self.n_clusters:
             raise ValueError(

@@ -75,11 +75,28 @@ def dtw_barycenter_averaging(
     z : ndarray of shape (barycenter_size[, n_features])
         DTW barycenter.
     """
-    X = np.asarray(X, dtype=np.float64)
+    # Handle variable-length input (object array or list of different-length arrays).
+    if isinstance(X, list) or (isinstance(X, np.ndarray) and X.dtype == object):
+        X_obj = np.empty(len(X), dtype=object)
+        for i in range(len(X)):
+            X_obj[i] = np.asarray(X[i], dtype=np.float64)
+        X = X_obj
+        variable_length = True
+    else:
+        X = np.asarray(X, dtype=np.float64)
+        variable_length = False
+
     n_samples = len(X)
-    T = X.shape[1]
-    multivariate = X.ndim == 3
-    d = X.shape[2] if multivariate else 1
+
+    if variable_length:
+        sample_0 = X[0]
+        multivariate = sample_0.ndim == 2
+        d = sample_0.shape[1] if multivariate else 1
+        T = len(sample_0)
+    else:
+        T = X.shape[1]
+        multivariate = X.ndim == 3
+        d = X.shape[2] if multivariate else 1
 
     if barycenter_size is None:
         barycenter_size = T
@@ -93,9 +110,9 @@ def dtw_barycenter_averaging(
 
     # --- Initialise ---
     if init is None:
-        if barycenter_size == T:
+        if not variable_length and barycenter_size == T:
             z = np.mean(X, axis=0)
-        else:
+        elif not variable_length:
             # Resample the mean to the target length via linear interpolation.
             mean_x = np.mean(X, axis=0)          # (T, d) or (T,)
             t_old = np.linspace(0, 1, T)
@@ -107,6 +124,18 @@ def dtw_barycenter_averaging(
                 )
             else:
                 z = np.interp(t_new, t_old, mean_x)
+        else:
+            # Variable-length: resample the first sample to barycenter_size.
+            s0 = X[0]
+            t_old = np.linspace(0, 1, len(s0))
+            t_new = np.linspace(0, 1, barycenter_size)
+            if multivariate:
+                z = np.stack(
+                    [np.interp(t_new, t_old, s0[:, k]) for k in range(d)],
+                    axis=-1,
+                )
+            else:
+                z = np.interp(t_new, t_old, s0)
     else:
         z = np.asarray(init, dtype=np.float64).copy()
 
